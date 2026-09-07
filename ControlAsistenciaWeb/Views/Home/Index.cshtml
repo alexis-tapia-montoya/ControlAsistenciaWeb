@@ -1,0 +1,224 @@
+﻿@{
+    ViewData["Title"] = "Control Facial de Asistencia";
+    Layout = null;
+}
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Control de Asistencia Biométrica</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
+</head>
+<body class="bg-light d-flex align-items-center min-vh-100 py-3">
+
+    <div class="container" style="max-width: 460px;">
+        <div class="card shadow border-0 rounded-4 overflow-hidden">
+            <div class="card-header bg-primary text-white text-center py-3">
+                <h5 class="mb-0 fw-bold">Control de Asistencia Facial</h5>
+                <small>Identificación Automática en Vivo</small>
+            </div>
+
+            <div class="card-body p-4 text-center">
+
+                <!-- Visor de Cámara -->
+                <div class="position-relative d-inline-block w-100 rounded-3 overflow-hidden bg-black mb-3" style="height: 340px;">
+                    <video id="video" autoplay playsinline muted class="w-100 h-100" style="object-fit: cover; transform: scaleX(-1);"></video>
+                </div>
+
+                <!-- Identificación en Tiempo Real -->
+                <div class="p-3 mb-3 bg-light rounded-3 border text-start">
+                    <span class="text-muted d-block small">Persona Identificada:</span>
+                    <span id="lblNombre" class="h5 fw-bold text-secondary mb-0">Detectando rostro...</span>
+                </div>
+
+                <div id="estadoMensaje" class="alert alert-info py-2 mb-3 small">
+                    Cargando redes neuronales faciales...
+                </div>
+
+                <!-- Botones de Marcaje -->
+                <div class="d-grid gap-2">
+                    <button id="btnEntrada" class="btn btn-success btn-lg fw-bold" disabled onclick="registrarMarca(0)">
+                        Marcar Entrada
+                    </button>
+                    <button id="btnSalida" class="btn btn-danger btn-lg fw-bold" disabled onclick="registrarMarca(1)">
+                        Marcar Salida
+                    </button>
+                </div>
+
+                <hr class="my-3" />
+
+                <!-- Enrolar Rostro -->
+                <button class="btn btn-sm btn-outline-secondary w-100" onclick="enrolarRostroActual()">
+                    📸 Asignar mi rostro al usuario (Enrolamiento)
+                </button>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- CDN oficial y estable de face-api.js -->
+    <script src="https://cdn.jsdelivr.net/npm/face-api.js@@0.22.2/dist/face-api.min.js"></script>
+
+    <script>
+            const video = document.getElementById('video');
+            const estadoMensaje = document.getElementById('estadoMensaje');
+            const lblNombre = document.getElementById('lblNombre');
+            const btnEntrada = document.getElementById('btnEntrada');
+            const btnSalida = document.getElementById('btnSalida');
+
+            let baseUsuarios = [];
+            let usuarioIdentificado = null;
+            let faceMatcher = null;
+
+            async function inicializar() {
+                try {
+                    // 1. Cargar modelos preentrenados
+                    estadoMensaje.textContent = 'Cargando modelos biométricos...';
+                    const MODEL_URL = 'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights';
+
+                    await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+                    await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
+                    await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
+
+                    // 2. Traer rostros guardados desde Clever Cloud
+                    estadoMensaje.textContent = 'Conectando con Clever Cloud...';
+                    await recargarDescriptores();
+
+                    // 3. Encender cámara
+                    estadoMensaje.textContent = 'Iniciando cámara frontal...';
+                    const stream = await navigator.mediaDevices.getUserMedia({
+                        video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
+                        audio: false
+                    });
+                    video.srcObject = stream;
+
+                    video.addEventListener('play', () => {
+                        estadoMensaje.className = 'alert alert-success py-2 mb-3 small';
+                        estadoMensaje.textContent = 'Cámara activa. Mire fijamente al lente.';
+                        iniciarEscaneo();
+                    });
+
+                } catch (error) {
+                    estadoMensaje.className = 'alert alert-danger py-2 mb-3 small';
+                    estadoMensaje.textContent = 'Error: ' + error.message;
+                }
+            }
+
+            async function recargarDescriptores() {
+                try {
+                    const res = await fetch('/api/asistencia/usuarios-rostros');
+                    baseUsuarios = await res.json();
+
+                    const labeled = [];
+                    baseUsuarios.forEach(u => {
+                        if (u.descriptorFacial) {
+                            try {
+                                const desc = new Float32Array(JSON.parse(u.descriptorFacial));
+                                labeled.push(new faceapi.LabeledFaceDescriptors(u.id.toString(), [desc]));
+                            } catch (e) {
+                                console.error("Descriptor no procesable:", u.id);
+                            }
+                        }
+                    });
+
+                    if (labeled.length > 0) {
+                        faceMatcher = new faceapi.FaceMatcher(labeled, 0.58);
+                    } else {
+                        faceMatcher = null;
+                    }
+                } catch (e) {
+                    console.error("No se pudieron cargar descriptores", e);
+                }
+            }
+
+            function iniciarEscaneo() {
+                setInterval(async () => {
+                    if (video.paused || video.ended) return;
+
+                    // Usamos TinyFaceDetector optimizado para tiempo real
+                    const detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions())
+                        .withFaceLandmarks()
+                        .withFaceDescriptor();
+
+                    if (detection) {
+                        if (faceMatcher) {
+                            const match = faceMatcher.findBestMatch(detection.descriptor);
+                            if (match.label !== 'unknown') {
+                                const encontrado = baseUsuarios.find(u => u.id.toString() === match.label);
+                                if (encontrado) {
+                                    usuarioIdentificado = encontrado;
+                                    lblNombre.textContent = encontrado.nombreCompleto;
+                                    lblNombre.className = "h5 fw-bold text-success mb-0";
+                                    btnEntrada.disabled = false;
+                                    btnSalida.disabled = false;
+                                    return;
+                                }
+                            }
+                        }
+                        lblNombre.textContent = "Rostro no registrado";
+                        lblNombre.className = "h5 fw-bold text-warning mb-0";
+                        usuarioIdentificado = null;
+                        btnEntrada.disabled = true;
+                        btnSalida.disabled = true;
+                    } else {
+                        lblNombre.textContent = "Buscando rostro...";
+                        lblNombre.className = "h5 fw-bold text-secondary mb-0";
+                        usuarioIdentificado = null;
+                        btnEntrada.disabled = true;
+                        btnSalida.disabled = true;
+                    }
+                }, 600);
+            }
+
+            async function registrarMarca(tipo) {
+                if (!usuarioIdentificado) return;
+
+                const res = await fetch('/api/asistencia/marcar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ usuarioId: usuarioIdentificado.id, tipo: tipo })
+                });
+
+                const data = await res.json();
+                alert(data.mensaje);
+            }
+
+            async function enrolarRostroActual() {
+                const idUsuario = prompt("Ingrese el ID del usuario al que vinculará este rostro:\n1 = Admin Principal\n2 = Juan Perez\n3 = Maria Gonzalez");
+                if (!idUsuario) return;
+
+                estadoMensaje.className = 'alert alert-primary py-2 mb-3 small';
+                estadoMensaje.textContent = "Extrayendo fisionomía biométrica...";
+
+                const detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions())
+                    .withFaceLandmarks()
+                    .withFaceDescriptor();
+
+                if (!detection) {
+                    alert("No se detecta rostro frente a la cámara. Asegúrate de tener buena luz.");
+                    estadoMensaje.className = 'alert alert-success py-2 mb-3 small';
+                    estadoMensaje.textContent = "Cámara activa. Mire fijamente al lente.";
+                    return;
+                }
+
+                const descriptorJson = JSON.stringify(Array.from(detection.descriptor));
+
+                const res = await fetch('/api/asistencia/registrar-rostro', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ usuarioId: parseInt(idUsuario), descriptorFacial: descriptorJson })
+                });
+
+                const data = await res.json();
+                alert(data.mensaje);
+                await recargarDescriptores();
+                estadoMensaje.className = 'alert alert-success py-2 mb-3 small';
+                estadoMensaje.textContent = "Rostro sincronizado con MySQL. Ya puede marcar.";
+            }
+
+            window.addEventListener('DOMContentLoaded', inicializar);
+    </script>
+</body>
+</html>
