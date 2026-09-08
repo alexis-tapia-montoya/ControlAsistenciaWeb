@@ -1,5 +1,4 @@
 ﻿using ControlAsistenciaWeb.Models;
-using ControlAsistenciaWeb.Models.ControlAsistenciaWeb.Models;
 using MySqlConnector;
 
 namespace ControlAsistenciaWeb.Services
