@@ -1,0 +1,154 @@
+﻿@using ControlAsistenciaWeb.Models
+@{
+    ViewData["Title"] = "Panel de Reportes";
+    var atrasos = ViewBag.Atrasos as List<ReporteAtrasoItem> ?? new List<ReporteAtrasoItem>();
+    var salidas = ViewBag.Salidas as List<ReporteSalidaAnticipadaItem> ?? new List<ReporteSalidaAnticipadaItem>();
+    var inasistencias = ViewBag.Inasistencias as List<ReporteInasistenciaItem> ?? new List<ReporteInasistenciaItem>();
+}
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold">Reportes de Asistencia</h2>
+        <a asp-controller="Home" asp-action="Index" class="btn btn-outline-secondary">Volver al Marcador</a>
+    </div>
+
+    <!-- Filtro de fechas -->
+    <div class="card mb-4 shadow-sm">
+        <div class="card-body">
+            <form method="get" class="row g-3 align-items-end">
+                <div class="col-md-4">
+                    <label class="form-label fw-bold">Fecha Desde</label>
+                    <input type="date" name="fechaDesde" value="@ViewBag.FechaDesde" class="form-control" />
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-bold">Fecha Hasta</label>
+                    <input type="date" name="fechaHasta" value="@ViewBag.FechaHasta" class="form-control" />
+                </div>
+                <div class="col-md-4 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary w-100">Filtrar</button>
+                    <a asp-action="Index" class="btn btn-light border">Limpiar</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Pestañas de reportes -->
+    <ul class="nav nav-pills mb-3" id="pills-tab" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="tab-atrasos" data-bs-toggle="pill" data-bs-target="#pills-atrasos" type="button" role="tab">
+                Atrasos (@atrasos.Count)
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-salidas" data-bs-toggle="pill" data-bs-target="#pills-salidas" type="button" role="tab">
+                Salidas Anticipadas (@salidas.Count)
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-inasistencias" data-bs-toggle="pill" data-bs-target="#pills-inasistencias" type="button" role="tab">
+                Inasistencias (@inasistencias.Count)
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="pills-tabContent">
+        <!-- Tabla Atrasos -->
+        <div class="tab-pane fade show active" id="pills-atrasos" role="tabpanel">
+            <div class="card shadow-sm">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Empleado</th>
+                                <th>Correo</th>
+                                <th>Hora Marcaje</th>
+                                <th>Hora Pactada</th>
+                                <th>Atraso</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (!atrasos.Any()) {
+                                <tr><td colspan="5" class="text-center text-muted py-3">No hay atrasos registrados en el rango</td></tr>
+                            }
+                            @foreach (var item in atrasos) {
+                                <tr>
+                                    <td class="fw-bold">@item.NombreCompleto</td>
+                                    <td>@item.Correo</td>
+                                    <td>@item.FechaHoraEntrada.ToString("dd/MM/yyyy HH:mm:ss")</td>
+                                    <td>@item.HoraPactada.ToString(@"hh\:mm")</td>
+                                    <td><span class="badge bg-danger">@item.MinutosAtraso min</span></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabla Salidas Anticipadas -->
+        <div class="tab-pane fade" id="pills-salidas" role="tabpanel">
+            <div class="card shadow-sm">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Empleado</th>
+                                <th>Correo</th>
+                                <th>Hora Marcaje</th>
+                                <th>Hora Pactada</th>
+                                <th>Anticipación</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (!salidas.Any()) {
+                                <tr><td colspan="5" class="text-center text-muted py-3">No hay salidas anticipadas registradas</td></tr>
+                            }
+                            @foreach (var item in salidas) {
+                                <tr>
+                                    <td class="fw-bold">@item.NombreCompleto</td>
+                                    <td>@item.Correo</td>
+                                    <td>@item.FechaHoraSalida.ToString("dd/MM/yyyy HH:mm:ss")</td>
+                                    <td>@item.HoraPactada.ToString(@"hh\:mm")</td>
+                                    <td><span class="badge bg-warning text-dark">@item.MinutosAnticipacion min antes</span></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabla Inasistencias -->
+        <div class="tab-pane fade" id="pills-inasistencias" role="tabpanel">
+            <div class="card shadow-sm">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>ID Empleado</th>
+                                <th>Nombre Completo</th>
+                                <th>Correo</th>
+                                <th>Fecha Inasistencia</th>
+                                <th>Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (!inasistencias.Any()) {
+                                <tr><td colspan="5" class="text-center text-muted py-3">No se detectaron ausencias para la fecha</td></tr>
+                            }
+                            @foreach (var item in inasistencias) {
+                                <tr>
+                                    <td>@item.UsuarioId</td>
+                                    <td class="fw-bold">@item.NombreCompleto</td>
+                                    <td>@item.Correo</td>
+                                    <td>@item.Fecha.ToString("dd/MM/yyyy")</td>
+                                    <td><span class="badge bg-secondary">Sin marcaje</span></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
