@@ -64,4 +64,38 @@ namespace ControlAsistenciaWeb.Models
         public string Correo { get; set; } = string.Empty;
         public DateTime Fecha { get; set; }
     }
+
+    public class HistorialTrabajadorItem
+    {
+        public DateTime FechaHora { get; set; }
+        public TipoRegistro Tipo { get; set; }
+        public string Estado { get; set; } = "Normal";
+    }
+
+    public class Justificacion
+    {
+        public int Id { get; set; }
+        public int UsuarioId { get; set; }
+        public DateTime FechaAusencia { get; set; }
+        public string Motivo { get; set; } = string.Empty;
+        public string NombreArchivo { get; set; } = string.Empty;
+        public string RutaArchivo { get; set; } = string.Empty;
+        public DateTime FechaSubida { get; set; }
+    }
+
+
+    public class JustificacionReporteItem
+    {
+        public int Id { get; set; }
+        public string NombreCompleto { get; set; } = string.Empty;
+        public string Correo { get; set; } = string.Empty;
+        public DateTime FechaAusencia { get; set; }
+        public string Motivo { get; set; } = string.Empty;
+        public string NombreArchivo { get; set; } = string.Empty;
+        public string RutaArchivo { get; set; } = string.Empty;
+        public DateTime FechaSubida { get; set; }
+        public int Estado { get; set; } = 0; 
+        public string? ComentarioRRHH { get; set; }
+        public DateTime? FechaRevision { get; set; }
+    }
 }

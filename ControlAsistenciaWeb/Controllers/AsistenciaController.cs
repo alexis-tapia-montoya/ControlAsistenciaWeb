@@ -62,5 +62,30 @@ namespace ControlAsistenciaWeb.Controllers
 
             return StatusCode(500, new { exito = false, mensaje = "Error al registrar la asistencia." });
         }
+
+        [HttpPost("login-facial")]
+        public async Task<IActionResult> LoginFacial([FromBody] MarcajeRequest request)
+        {
+            if (request.UsuarioId <= 0)
+                return BadRequest(new { exito = false, mensaje = "ID de usuario inválido." });
+
+            var usuarios = await _dbService.ObtenerUsuariosActivosAsync();
+            var usuario = usuarios.FirstOrDefault(u => u.Id == request.UsuarioId);
+
+            if (usuario == null)
+                return NotFound(new { exito = false, mensaje = "Usuario no encontrado o inactivo." });
+
+            string redirectUrl = usuario.RolUsuario == Rol.administrador
+                ? "/Admin/Dashboard"
+                : $"/Trabajador/Portal?usuarioId={usuario.Id}";
+
+            return Ok(new
+            {
+                exito = true,
+                usuario = usuario.NombreCompleto,
+                rol = usuario.RolUsuario.ToString(),
+                redirectUrl = redirectUrl
+            });
+        }
     }
 }

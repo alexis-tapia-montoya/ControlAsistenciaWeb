@@ -1,0 +1,157 @@
+﻿@{
+    ViewData["Title"] = "Portal del Trabajador";
+    var usuario = ViewBag.Usuario as ControlAsistenciaWeb.Models.Usuario;
+    var historial = ViewBag.Historial as List<ControlAsistenciaWeb.Models.HistorialTrabajadorItem> ?? new();
+}
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Portal del Trabajador</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
+</head>
+<body class="bg-light pb-5">
+
+    <nav class="navbar navbar-dark bg-primary shadow-sm mb-4">
+        <div class="container">
+            <span class="navbar-brand fw-bold mb-0">👤 Bienvenido, @usuario?.NombreCompleto</span>
+            <a href="/" class="btn btn-sm btn-outline-light">Cerrar Sesión</a>
+        </div>
+    </nav>
+
+    <div class="container" style="max-width: 900px;">
+
+        @if (TempData["Exito"] != null)
+        {
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                @TempData["Exito"]
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        }
+        @if (TempData["Error"] != null)
+        {
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                @TempData["Error"]
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        }
+
+        <div class="row g-4 mb-4">
+            <!-- Tarjeta de Marcaje -->
+            <div class="col-md-5">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-header bg-white fw-bold py-3">⏱ Registro de Asistencia Hoy</div>
+                    <div class="card-body text-center d-flex flex-column justify-content-center">
+                        <p class="text-muted small mb-3">Registra tu jornada de hoy con un solo clic:</p>
+                        
+                        <div class="d-grid gap-2">
+                            <form asp-action="RegistrarMarca" method="post">
+                                <input type="hidden" name="usuarioId" value="@usuario?.Id" />
+                                <input type="hidden" name="tipo" value="0" />
+                                <button type="submit" class="btn btn-success btn-lg w-100 fw-bold">Marcar Entrada</button>
+                            </form>
+                            <form asp-action="RegistrarMarca" method="post">
+                                <input type="hidden" name="usuarioId" value="@usuario?.Id" />
+                                <input type="hidden" name="tipo" value="1" />
+                                <button type="submit" class="btn btn-danger btn-lg w-100 fw-bold">Marcar Salida</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Formulario de Justificación Médica -->
+            <div class="col-md-7">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-header bg-white fw-bold py-3">📄 Justificar Ausencia / Licencia Médica</div>
+                    <div class="card-body">
+                        <form asp-action="SubirJustificacion" method="post" enctype="multipart/form-data">
+                            <input type="hidden" name="usuarioId" value="@usuario?.Id" />
+                            
+                            <div class="row g-2 mb-3">
+                                <div class="col-sm-6">
+                                    <label class="form-label small fw-semibold">Fecha de Ausencia</label>
+                                    <input type="date" name="fechaAusencia" class="form-control form-control-sm" required />
+                                </div>
+                                <div class="col-sm-6">
+                                    <label class="form-label small fw-semibold">Motivo</label>
+                                    <input type="text" name="motivo" class="form-control form-control-sm" placeholder="Ej: Reposo médico, Trámite" required />
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label small fw-semibold">Adjuntar Certificado (PDF o Imagen)</label>
+                                <input type="file" name="archivo" class="form-control form-control-sm" accept=".pdf,image/*" required />
+                            </div>
+
+                            <button type="submit" class="btn btn-primary btn-sm w-100 fw-bold">Subir y Notificar a RRHH</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Historial de Asistencia Personal -->
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white fw-bold py-3">📋 Mis Últimos Registros de Asistencia</div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0 small">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Hora</th>
+                                <th>Tipo</th>
+                                <th>Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (historial.Count == 0)
+                            {
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted py-4">No tienes registros de asistencia recientes.</td>
+                                </tr>
+                            }
+                            else
+                            {
+                                @foreach (var h in historial)
+                                {
+                                    <tr>
+                                        <td>@h.FechaHora.ToString("dd/MM/yyyy")</td>
+                                        <td>@h.FechaHora.ToString("HH:mm:ss")</td>
+                                        <td>
+                                            @if (h.Tipo == ControlAsistenciaWeb.Models.TipoRegistro.entrada)
+                                            {
+                                                <span class="badge bg-success">Entrada</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-danger">Salida</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            @if (h.Estado.Contains("Atraso") || h.Estado.Contains("Salida Temprana"))
+                                            {
+                                                <span class="badge bg-warning text-dark">@h.Estado</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-info text-dark">@h.Estado</span>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
